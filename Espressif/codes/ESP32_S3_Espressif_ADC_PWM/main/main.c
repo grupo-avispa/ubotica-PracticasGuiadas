@@ -123,13 +123,8 @@ void app_main(void)
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, ADC1_CHAN_A, &config));
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, ADC1_CHAN_B, &config));
 
-    // ADC calibration init. Using the ub_esp32_adc_calib library
-    bool do_calibration1_chan_A = false;
-    bool do_calibration1_chan_B = false;
-
     // Set the LEDC peripheral configuration
     example_ledc_init();
-    float percent_duty = 0.9;
     // Set duty to 90%
     ESP_ERROR_CHECK(ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, LEDC_DUTY));
     // Update duty to apply the new value
