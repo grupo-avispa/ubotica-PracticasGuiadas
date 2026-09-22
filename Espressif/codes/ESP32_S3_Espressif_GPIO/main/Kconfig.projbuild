@@ -1,0 +1,11 @@
+menu "GPIO Configuration"
+    config INPUT_PIN
+        int "GPIO input pin number"
+        default 1
+    config LED_PIN_1
+        int "GPIO LED 1 pin number"
+        default 4
+    config LED_PIN_2
+        int "GPIO LED 2 pin number"
+        default 5
+endmenu
