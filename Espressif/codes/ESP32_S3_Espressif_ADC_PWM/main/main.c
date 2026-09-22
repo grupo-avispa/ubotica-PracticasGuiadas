@@ -140,8 +140,7 @@ void app_main(void)
         ESP_LOGI(TAG, "ADC%d Channel[%d] Raw Data: %d", ADC_UNIT_1 + 1, ADC1_CHAN_B, adc_raw_B);
         vTaskDelay(pdMS_TO_TICKS(100));
         
-        // Change the duty cycle of the PWM output based on the ADC CHAN_A value
-        // JP: CHECK WHEN WE HAVE THE DEVKITC!!!
+        // Change the duty cycle of the PWM output based on the ADC CHAN_A value       
         uint32_t duty_cycle = (uint32_t)(((float)adc_raw_A / 4095.0) * (float)LEDC_DUTY);
         ESP_ERROR_CHECK(ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, duty_cycle));
         ESP_ERROR_CHECK(ledc_update_duty(LEDC_MODE, LEDC_CHANNEL));
