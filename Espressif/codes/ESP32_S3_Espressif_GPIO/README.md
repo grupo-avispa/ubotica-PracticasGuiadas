@@ -1,15 +1,21 @@
 | Supported Targets | ESP32 | ESP32-C2 | ESP32-C3 | ESP32-S2 | ESP32-S3 |
 | ----------------- | ----- | -------- | -------- | -------- | -------- |
 
-# _Sample project_
+# _GPIO example_
 
 (See the README.md file in the upper level 'examples' directory for more information about examples.)
 
-This is the simplest buildable example. The example is used by command `idf.py create-project`
-that copies the project to user specified path and set it's name. For more information follow the [docs page](https://docs.espressif.com/projects/esp-idf/en/latest/api-guides/build-system.html#start-a-new-project)
+This program shows how to use GPIOs on the ESP32-S3. It configures an input pin with an internal pull-up resistor and two output pins. By default these output pins are the ones associated to the two LEDs in the microbot's board. 
 
+When the input pin is pressed, it triggers an interrupt that toggles the state of the output pins. The first output pin mirrors the state of the input pin, while the second output pin toggles its state with each press.
 
+## Debouncing
 
+This program has NO debounce mechanism implemented, so if the input GPIO is connected to a button, expect glitches to mess up with the output everytime the button is pressed. 
+
+As part of their practice work, students should provide a new code, based on this one, in which a software debouncing system is implemented and avoids this issue.
+
+<!-- 
 ## How to use example
 We encourage the users to use the example as a template for the new projects.
 A recommended way is to follow the instructions on a [docs page](https://docs.espressif.com/projects/esp-idf/en/latest/api-guides/build-system.html#start-a-new-project).
@@ -32,4 +38,4 @@ Below is short explanation of remaining files in the project folder.
 └── README.md                  This is the file you are currently reading
 ```
 Additionally, the sample project contains Makefile and component.mk files, used for the legacy Make based build system. 
-They are not used or needed when building with CMake and idf.py.
+They are not used or needed when building with CMake and idf.py. -->
