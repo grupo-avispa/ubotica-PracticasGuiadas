@@ -1,35 +1,14 @@
 | Supported Targets | ESP32 | ESP32-C2 | ESP32-C3 | ESP32-S2 | ESP32-S3 |
 | ----------------- | ----- | -------- | -------- | -------- | -------- |
 
-# _Sample project_
+# _MQTT communication using JSON over WiFi_
 
 (See the README.md file in the upper level 'examples' directory for more information about examples.)
 
-This is the simplest buildable example. The example is used by command `idf.py create-project`
-that copies the project to user specified path and set it's name. For more information follow the [docs page](https://docs.espressif.com/projects/esp-idf/en/latest/api-guides/build-system.html#start-a-new-project)
+This example code for the **Microbótica** subject at GIET provides the following:
 
+- A library to easily connect your ESP32 S3 to a WiFi. You will need only to set the WiFi SSID and PASSWORD in the SDK Configuration and use a single function in your code.
 
+- A library to start an MQTT client, subscribe to a topic, and publish messages to that topic. The library incorporates an example struct to store robot data, that you can expand according to your needs. This structure is published in the topic as a serialized JSON, so you can have a first experience in using JSON format.
 
-## How to use example
-We encourage the users to use the example as a template for the new projects.
-A recommended way is to follow the instructions on a [docs page](https://docs.espressif.com/projects/esp-idf/en/latest/api-guides/build-system.html#start-a-new-project).
-
-## Example folder contents
-
-The project **sample_project** contains one source file in C language [main.c](main/main.c). The file is located in folder [main](main).
-
-ESP-IDF projects are built using CMake. The project build configuration is contained in `CMakeLists.txt`
-files that provide set of directives and instructions describing the project's source files and targets
-(executable, library, or both). 
-
-Below is short explanation of remaining files in the project folder.
-
-```
-├── CMakeLists.txt
-├── main
-│   ├── CMakeLists.txt
-│   └── main.c
-└── README.md                  This is the file you are currently reading
-```
-Additionally, the sample project contains Makefile and component.mk files, used for the legacy Make based build system. 
-They are not used or needed when building with CMake and idf.py.
+- An example code that allows testing both libraries.

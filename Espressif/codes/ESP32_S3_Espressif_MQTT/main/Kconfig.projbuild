@@ -1,13 +1,13 @@
-menu "WiFi and MQTT configuration"
+menu "WiFi configuration"
     config WIFI_SSID
         string "WiFi SSID"
-        default "clarc1"
+        default "<WIFI_SSID>"
         help
             Name of the WiFi network to connect to
 
     config WIFI_PASSWORD
         string "WiFi Password"
-        default "robotclarc1"
+        default "<WIFI_PASSWORD>"
         help
             Password of the WiFi network to connect to
     
@@ -16,11 +16,12 @@ menu "WiFi and MQTT configuration"
         default 10
         help
             Maximum number of retries to connect to the WiFi network
+endmenu
 
+menu "MQTT configuration"
     config BROKER_URL
         string "MQTT broker URL"
         default "mqtt://waspbrain.es"
-        #default "mqtt://mqtt.eclipseprojects.io"
         help
             URL of the mqtt broker to connect to
 
@@ -33,20 +34,19 @@ menu "WiFi and MQTT configuration"
 
     config MQTT_USERNAME
         string "Username for the MQTT server"
-        default "pisito"
+        default "<MQTT_USERNAME>"
         help
             Username for the MQTT server
     
     config MQTT_PASSWORD
         string "Password for the MQTT server"
-        default "wasp"
+        default "<MQTT_PASSWORD>"
         help
             Password for the MQTT server
 
     config MQTT_TOPIC
         string "MQTT topic to publish to"
-        default "avispa/test/jp"
-        #default "/topic/qos0"
+        default "/topic/qos0"
         help
             name of the mqtt topic to publish to
 endmenu

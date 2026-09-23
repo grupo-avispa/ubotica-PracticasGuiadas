@@ -30,6 +30,12 @@
 #include <esp_sntp.h>
 #include <driver/gpio.h>
 
+#define ESP_WIFI_SSID CONFIG_WIFI_SSID // WiFi SSID
+#define ESP_WIFI_PASS CONFIG_WIFI_PASSWORD // WiFi Password
+#define ESP_WIFI_MAXIMUM_RETRY (int)CONFIG_WIFI_MAXIMUM_RETRY // Maximum number of WiFi connection retries
+
+#define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WPA_WPA2_PSK
+
 void ub_esp32_wifi_init();
 
 #endif // UB_ESP32_WIFI_H

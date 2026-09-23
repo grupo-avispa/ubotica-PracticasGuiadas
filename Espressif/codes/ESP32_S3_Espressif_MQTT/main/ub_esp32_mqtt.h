@@ -33,6 +33,34 @@
 #include "esp_log.h"
 #include "mqtt_client.h"
 
+#include "cJSON.h"
+
+#define BROKER_URL CONFIG_BROKER_URL
+#define BROKER_PORT CONFIG_BROKER_PORT
+#define MQTT_USERNAME CONFIG_MQTT_USERNAME
+#define MQTT_PASSWORD CONFIG_MQTT_PASSWORD
+
+#define MQTT_TOPIC CONFIG_MQTT_TOPIC // Topic to subscribe to and publish messages
+
+// Structure to hold robot data. This is an EXAMPLE structure, you can modify it according to your needs.
+struct robot_data {
+    uint8_t  robot_id;
+    double pos_x;
+    double pos_y;
+    double speed;
+    double heading;
+};
+
+// init MQTT client and connect to the broker. 
+//      This function should be called before any publish or subscribe operations.
 void ub_esp32_mqtt_init(void);
+
+// publish a message to the MQTT broker. 
+//      Returns the message ID if successful, or -1 if the client is not initialized.
+int ub_esp32_mqtt_publish(const char *message, int qos, int retain);
+
+// publish robot data to the MQTT broker as a serialized JSON string. 
+//      Returns the message ID if successful, or -1 if the client is not initialized.
+int ub_esp32_mqtt_publish_robot_data(struct robot_data *data, int qos, int retain);
 
 #endif // UB_ESP32_MQTT_H

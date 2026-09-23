@@ -104,6 +104,28 @@ void app_main(void)
     strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
     ESP_LOGI(TAG, "The current date/time in Málaga is: %s", strftime_buf);
 
-    // MQTT Starts
+    // Init MQTT
     ub_esp32_mqtt_init();
+
+    // Send hello message
+    int msg_id = ub_esp32_mqtt_publish("Welcome home sanitarium!", 0, 0);
+    if (msg_id != -1)
+        ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id); // for debug
+    else
+        ESP_LOGI(TAG, "sent publish error, msg_id=%d", msg_id); // for debug
+
+    // Send test robot data
+    struct robot_data test_robot_data = {
+        .robot_id = 1,
+        .pos_x = 10.5,
+        .pos_y = 20.3,
+        .speed = 5.0,
+        .heading = 90.0
+    };
+    msg_id = ub_esp32_mqtt_publish_robot_data(&test_robot_data, 0, 0);
+    if (msg_id != -1)
+        ESP_LOGI(TAG, "sent robot data publish successful, msg_id=%d", msg_id); // for debug
+    else
+        ESP_LOGI(TAG, "sent robot data publish error, msg_id=%d", msg_id); // for debug
+
 }
