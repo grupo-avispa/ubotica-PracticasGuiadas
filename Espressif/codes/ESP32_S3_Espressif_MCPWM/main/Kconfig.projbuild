@@ -1,0 +1,49 @@
+menu "Project Configuration"
+    config LEFT_BDC_MCPWM_GPIO_A
+        int "Left wheel: MCPWM signal A GPIO"
+        default 6
+        help
+            GPIO number for MCPWM signal A
+
+    config LEFT_BDC_MCPWM_GPIO_B
+        int "Left wheel: MCPWM signal B GPIO"
+        default 7
+        help
+            GPIO number for MCPWM signal B
+
+    config LEFT_BDC_ENCODER_GPIO_A
+        int "Left wheel: Rotary encoder signal A GPIO"
+        default 16
+        help
+            GPIO number for rotary encoder signal A
+
+    config LEFT_BDC_ENCODER_GPIO_B
+        int "Left wheel: Rotary encoder signal B GPIO"
+        default 15
+        help
+            GPIO number for rotary encoder signal B
+
+    config RIGHT_BDC_MCPWM_GPIO_A
+        int "Right wheel: MCPWM signal A GPIO"
+        default 4
+        help
+            GPIO number for MCPWM signal A
+    
+    config RIGHT_BDC_MCPWM_GPIO_B
+        int "Right wheel: MCPWM signal B GPIO"
+        default 5
+        help
+            GPIO number for MCPWM signal B
+
+    config RIGHT_BDC_ENCODER_GPIO_A
+        int "Right wheel: Rotary encoder signal A GPIO"
+        default 18
+        help
+            GPIO number for rotary encoder signal A
+
+    config RIGHT_BDC_ENCODER_GPIO_B
+        int "Right wheel: Rotary encoder signal B GPIO"
+        default 19
+        help
+            GPIO number for rotary encoder signal B
+endmenu
