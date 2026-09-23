@@ -1,0 +1,14 @@
+menu "GPIO configuration"
+    config LED1
+        int "LED1"
+        default 4
+        prompt "GPIO pin for LED1"
+    config LED2
+        int "LED2"
+        default 5
+        prompt "GPIO pin for LED2"
+    config INPUT
+        int "INPUT"
+        default 1
+        prompt "GPIO pin for INPUT"
+endmenu

@@ -1,0 +1,6 @@
+menu "Project configuration"
+    config PERIOD
+        int "Timer period"
+        default 1000
+        prompt "Set the timer period in milliseconds"
+endmenu
