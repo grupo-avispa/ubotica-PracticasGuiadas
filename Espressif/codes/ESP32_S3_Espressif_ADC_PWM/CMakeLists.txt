@@ -5,4 +5,4 @@
 cmake_minimum_required(VERSION 3.16)
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(ESP32_S3_Espressif_GPIO)
+project(ESP32_S3_Espressif_ADC_PWM)

@@ -1,0 +1,52 @@
+menu "WiFi and MQTT configuration"
+    config WIFI_SSID
+        string "WiFi SSID"
+        default "clarc1"
+        help
+            Name of the WiFi network to connect to
+
+    config WIFI_PASSWORD
+        string "WiFi Password"
+        default "robotclarc1"
+        help
+            Password of the WiFi network to connect to
+    
+    config WIFI_MAXIMUM_RETRY
+        int "WiFi maximum connection retries"
+        default 10
+        help
+            Maximum number of retries to connect to the WiFi network
+
+    config BROKER_URL
+        string "MQTT broker URL"
+        default "mqtt://waspbrain.es"
+        #default "mqtt://mqtt.eclipseprojects.io"
+        help
+            URL of the mqtt broker to connect to
+
+    config BROKER_PORT
+        int "MQTT broker port"
+        range 0 16384
+        default 1886
+        help
+            Port to connect to
+
+    config MQTT_USERNAME
+        string "Username for the MQTT server"
+        default "pisito"
+        help
+            Username for the MQTT server
+    
+    config MQTT_PASSWORD
+        string "Password for the MQTT server"
+        default "wasp"
+        help
+            Password for the MQTT server
+
+    config MQTT_TOPIC
+        string "MQTT topic to publish to"
+        default "avispa/test/jp"
+        #default "/topic/qos0"
+        help
+            name of the mqtt topic to publish to
+endmenu

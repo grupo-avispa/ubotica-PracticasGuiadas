@@ -1,0 +1,18 @@
+menu "Project Configuration"
+    config ADC1_CHAN_A
+        int "ADC1 channel A (GPIO pin number)"
+        default 1
+    config ADC1_CHAN_B
+        int "ADC1 channel B (GPIO pin number)"
+        default 2
+    config ADC_ATTEN
+        int "ADC attenuation (0-3)"
+        default 3
+        help 
+          ADC_ATTEN=3 (default value) means ADC_ATTEN_DB_12 = voltage range 0-3.9V  
+    config PWM_OUTPUT
+        int "PWM output (GPIO pin number)"
+        default 4
+        help 
+          PWM_OUTPUT=4 (default value) means GPIO4 is used for LEDC (LED control) PWM output
+endmenu

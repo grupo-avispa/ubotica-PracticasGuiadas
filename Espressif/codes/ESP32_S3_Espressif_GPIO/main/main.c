@@ -13,6 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This program shows how to use GPIOs on the ESP32-S3. 
+// It configures an input pin with an internal pull-up resistor and two output pins. 
+// When the input pin is pressed, it triggers an interrupt that toggles the state of the output pins. 
+// The first output pin mirrors the state of the input pin, while the second output pin toggles its state with each press
+
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -22,9 +27,9 @@
 
 static const char *TAG = "gpio_example";
 
-#define INPUT_PIN (gpio_num_t)CONFIG_INPUT // input pin. Needs internal pull-up
-#define LED_PIN (gpio_num_t)CONFIG_LED1 // output LED 1
-#define LED_PIN_2 (gpio_num_t)CONFIG_LED2 // output LED 2
+#define INPUT_PIN (gpio_num_t)CONFIG_INPUT_PIN // input pin. Needs internal pull-up
+#define LED_PIN (gpio_num_t)CONFIG_LED_PIN_1 // LED 1 output pin 
+#define LED_PIN_2 (gpio_num_t)CONFIG_LED_PIN_2 // LED 2 output pin
 
 int state = 0;
 QueueHandle_t interruptQueue;
