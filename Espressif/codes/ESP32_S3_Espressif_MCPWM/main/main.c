@@ -99,7 +99,6 @@ void app_main(void)
     pcnt_unit_config_t unit_config = {
         .high_limit = BDC_ENCODER_PCNT_HIGH_LIMIT,
         .low_limit = BDC_ENCODER_PCNT_LOW_LIMIT,
-        .flags.accum_count = true, // enable counter accumulation
     };
     pcnt_unit_handle_t pcnt_unit = NULL;
     ESP_ERROR_CHECK(pcnt_new_unit(&unit_config, &pcnt_unit));
