@@ -17,8 +17,8 @@
 
 static const char *TAG = "ub_MCPWM";
 
-// Create a DC motor using MCPWM and configure it with the specified parameters.
-void ub_mcpwm_create_dc_motor(struct motor_control_context *motor_ctrl_ctx, 
+// Create a DC motor using MCPWM and configure it with the specified parameters. Returns motor handler
+bdc_motor_handle_t ub_mcpwm_create_dc_motor(motor_control_context_t *motor_ctrl_ctx, 
                             gpio_num_t pwm_gpio_a, gpio_num_t pwm_gpio_b, 
                             uint32_t group_id, uint32_t pwm_freq_hz, uint32_t pwm_resolution_hz)
 {
@@ -45,10 +45,12 @@ void ub_mcpwm_create_dc_motor(struct motor_control_context *motor_ctrl_ctx,
     ESP_ERROR_CHECK(bdc_motor_new_mcpwm_device(&motor_config, &mcpwm_config, &motor));
     // Store the motor handle in the provided context structure
     motor_ctrl_ctx->motor = motor;
+    // Return the motor handle to the caller
+    return motor;
 }
 
 // Create a H-bridge quadrature decoder using PCNT and configure it with the specified parameters.
-void ub_mcpwm_create_quadrature_decoder(struct motor_control_context *motor_ctrl_ctx, 
+void ub_mcpwm_create_quadrature_decoder(motor_control_context_t *motor_ctrl_ctx, 
                                     gpio_num_t encoder_gpio_a, gpio_num_t encoder_gpio_b,
                                     int16_t pcnt_high_limit, int16_t pcnt_low_limit)
 {
@@ -95,7 +97,7 @@ void ub_mcpwm_create_quadrature_decoder(struct motor_control_context *motor_ctrl
 }
 
 // Create a PID controller for the motor speed control and configure it with the specified parameters.
-void ub_mcpwm_create_pid_controller(struct motor_control_context *motor_ctrl_ctx, 
+void ub_mcpwm_create_pid_controller(motor_control_context_t *motor_ctrl_ctx, 
                                     float kp, float ki, float kd,
                                     float max_output, float min_output)
 {
