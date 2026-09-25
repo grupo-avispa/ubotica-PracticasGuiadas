@@ -127,18 +127,48 @@ void ub_mcpwm_create_pid_controller(motor_control_context_t *motor_ctrl_ctx,
     motor_ctrl_ctx->pid_ctrl = pid_ctrl;
 }
 
+// Callback function for the PID control loop. This function is called periodically by the timer.
+static void pid_loop_cb(void *args)
+{
+    motor_control_context_t *ctx = (motor_control_context_t *)args;
+    pcnt_unit_handle_t pcnt_unit = ctx->pcnt_encoder;
+    pid_ctrl_block_handle_t pid_ctrl = ctx->pid_ctrl;
+    bdc_motor_handle_t motor = ctx->motor;
+
+    // get the result from rotary encoder
+    int cur_pulse_count = 0;
+    pcnt_unit_get_count(pcnt_unit, &cur_pulse_count);
+    int real_pulses = cur_pulse_count - ctx->last_pulse_count;
+    ctx->last_pulse_count = cur_pulse_count;
+    ctx->report_pulses = real_pulses;
+
+    // calculate the speed error
+    float error = ctx->desired_speed - real_pulses;
+    float new_speed = 0;
+
+    // set the new speed
+    pid_compute(pid_ctrl, error, &new_speed);
+    bdc_motor_set_speed(motor, (uint32_t)new_speed);
+}
+
 // Create a periodic timer to call the PID control loop function at a specified interval (in milliseconds).
 esp_timer_handle_t ub_mcpwm_create_pid_loop_timer(motor_control_context_t *motor_ctrl_ctx, 
-                                    uint32_t period_ms, esp_timer_cb_t pid_loop_cb, const char *loop_name)
+                                    uint32_t period_ms)
 {
     ESP_LOGI(TAG, "Create a timer to do PID calculation periodically");
     const esp_timer_create_args_t periodic_timer_args = {
-        .callback = pid_loop_cb, 
+        .callback = pid_loop_cb, // Callback function to execute when the timer expires. Defined just above
         .arg = (void *)motor_ctrl_ctx,
-        .name = loop_name
+        .name = "pid_loop_timer",
     };
     esp_timer_handle_t periodic_timer;
     ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &periodic_timer));
     ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, period_ms * 1000));
     return periodic_timer;
+}
+
+// Set motor speed in pulses per control loop period. The speed is set as the desired speed for the PID controller.
+void ub_mcpwm_set_motor_desired_speed(motor_control_context_t *motor_ctrl_ctx, int desired_speed)
+{
+    motor_ctrl_ctx->desired_speed = desired_speed;
 }

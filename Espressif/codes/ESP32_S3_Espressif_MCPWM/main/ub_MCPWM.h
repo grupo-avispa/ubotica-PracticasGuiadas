@@ -54,6 +54,9 @@ void ub_mcpwm_create_pid_controller(motor_control_context_t *motor_ctrl_ctx,
                                     
 // Create a periodic timer to call the PID control loop function at a specified interval (in milliseconds).
 esp_timer_handle_t ub_mcpwm_create_pid_loop_timer(motor_control_context_t *motor_ctrl_ctx, 
-                                    uint32_t period_ms, esp_timer_cb_t pid_loop_cb, const char *loop_name);
+                                    uint32_t period_ms);
+
+// Set motor speed in pulses per control loop period. The speed is set as the desired speed for the PID controller.
+void ub_mcpwm_set_motor_desired_speed(motor_control_context_t *motor_ctrl_ctx, int desired_speed);
 
 #endif /* _UB_MCPWM_H_ */
