@@ -33,6 +33,8 @@ typedef struct motor_control_context {
     pcnt_unit_handle_t pcnt_encoder;
     pid_ctrl_block_handle_t pid_ctrl;
     int report_pulses;
+    int last_pulse_count;
+    int desired_speed; // desired speed in pulses per control loop period
 } motor_control_context_t;
 
 // Create a DC motor using MCPWM and configure it with the specified parameters. Returns motor handler
@@ -48,6 +50,10 @@ void ub_mcpwm_create_quadrature_decoder(motor_control_context_t *motor_ctrl_ctx,
 // Create a PID controller for the motor speed control and configure it with the specified parameters.
 void ub_mcpwm_create_pid_controller(motor_control_context_t *motor_ctrl_ctx, 
                                     float kp, float ki, float kd,
-                                    float max_output, float min_output);                                       
+                                    float max_output, float min_output);         
+                                    
+// Create a periodic timer to call the PID control loop function at a specified interval (in milliseconds).
+esp_timer_handle_t ub_mcpwm_create_pid_loop_timer(motor_control_context_t *motor_ctrl_ctx, 
+                                    uint32_t period_ms, esp_timer_cb_t pid_loop_cb, const char *loop_name);
 
 #endif /* _UB_MCPWM_H_ */

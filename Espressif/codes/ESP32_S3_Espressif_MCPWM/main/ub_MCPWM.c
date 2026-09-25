@@ -27,6 +27,11 @@ bdc_motor_handle_t ub_mcpwm_create_dc_motor(motor_control_context_t *motor_ctrl_
     // Initialize the encoder handle to NULL. It will be set later when the encoder is created.
     motor_ctrl_ctx->pcnt_encoder = NULL; 
 
+    // Initialize pulse count to 0. This will be updated later when the encoder is created and starts counting.
+    motor_ctrl_ctx->last_pulse_count = 0;
+    // Set init speed to 0
+    motor_ctrl_ctx->desired_speed = 0;
+
     // Configure the motor with the specified parameters
     bdc_motor_config_t motor_config = {
         // PWM frequency in Hz. This is the frequency at which the PWM signal will toggle.
@@ -120,4 +125,20 @@ void ub_mcpwm_create_pid_controller(motor_control_context_t *motor_ctrl_ctx,
     ESP_ERROR_CHECK(pid_new_control_block(&pid_config, &pid_ctrl));
     // Store the PID controller handle in the provided context structure
     motor_ctrl_ctx->pid_ctrl = pid_ctrl;
+}
+
+// Create a periodic timer to call the PID control loop function at a specified interval (in milliseconds).
+esp_timer_handle_t ub_mcpwm_create_pid_loop_timer(motor_control_context_t *motor_ctrl_ctx, 
+                                    uint32_t period_ms, esp_timer_cb_t pid_loop_cb, const char *loop_name)
+{
+    ESP_LOGI(TAG, "Create a timer to do PID calculation periodically");
+    const esp_timer_create_args_t periodic_timer_args = {
+        .callback = pid_loop_cb, 
+        .arg = (void *)motor_ctrl_ctx,
+        .name = loop_name
+    };
+    esp_timer_handle_t periodic_timer;
+    ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &periodic_timer));
+    ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, period_ms * 1000));
+    return periodic_timer;
 }
