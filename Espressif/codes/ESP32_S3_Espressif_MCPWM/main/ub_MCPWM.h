@@ -35,7 +35,10 @@ typedef struct motor_control_context {
     int report_pulses;
     int last_pulse_count;
     int desired_speed; // desired speed in pulses per control loop period
+    bool reverse; // we need to store here wether the motor is moving forward or reverse
 } motor_control_context_t;
+
+typedef enum motor_direction {FORWARD, REVERSE} motor_direction;
 
 // Create a DC motor using MCPWM and configure it with the specified parameters. Returns motor handler
 bdc_motor_handle_t ub_mcpwm_create_dc_motor(motor_control_context_t *motor_ctrl_ctx, 
@@ -58,5 +61,8 @@ esp_timer_handle_t ub_mcpwm_create_pid_loop_timer(motor_control_context_t *motor
 
 // Set motor speed in pulses per control loop period. The speed is set as the desired speed for the PID controller.
 void ub_mcpwm_set_motor_desired_speed(motor_control_context_t *motor_ctrl_ctx, int desired_speed);
+
+// Enable and start motor 
+void ub_mcpwm_start_motor(motor_control_context_t *motor_ctrl_ctx, motor_direction dir);
 
 #endif /* _UB_MCPWM_H_ */

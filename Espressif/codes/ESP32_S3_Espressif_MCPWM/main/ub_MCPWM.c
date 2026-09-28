@@ -65,6 +65,8 @@ void ub_mcpwm_create_quadrature_decoder(motor_control_context_t *motor_ctrl_ctx,
         .high_limit = pcnt_high_limit, 
         // minimum count value for the PCNT unit. When the count reaches this value, it will trigger a watch point event.
         .low_limit = pcnt_low_limit,
+        // enable counter accumulation
+        .flags.accum_count = true, 
     };
     pcnt_unit_handle_t pcnt_unit = NULL;
     ESP_ERROR_CHECK(pcnt_new_unit(&unit_config, &pcnt_unit));
@@ -134,16 +136,21 @@ static void pid_loop_cb(void *args)
     pcnt_unit_handle_t pcnt_unit = ctx->pcnt_encoder;
     pid_ctrl_block_handle_t pid_ctrl = ctx->pid_ctrl;
     bdc_motor_handle_t motor = ctx->motor;
+    bool reverse = ctx->reverse;
 
     // get the result from rotary encoder
     int cur_pulse_count = 0;
     pcnt_unit_get_count(pcnt_unit, &cur_pulse_count);
-    int real_pulses = cur_pulse_count - ctx->last_pulse_count;
+    int real_pulses = cur_pulse_count - ctx->last_pulse_count;    
     ctx->last_pulse_count = cur_pulse_count;
     ctx->report_pulses = real_pulses;
 
     // calculate the speed error
-    float error = ctx->desired_speed - real_pulses;
+    float error;
+    if (!reverse) // forward
+        error = ctx->desired_speed - real_pulses;
+    else    // reverse
+        error = ctx->desired_speed + real_pulses;
     float new_speed = 0;
 
     // set the new speed
@@ -171,4 +178,24 @@ esp_timer_handle_t ub_mcpwm_create_pid_loop_timer(motor_control_context_t *motor
 void ub_mcpwm_set_motor_desired_speed(motor_control_context_t *motor_ctrl_ctx, int desired_speed)
 {
     motor_ctrl_ctx->desired_speed = desired_speed;
+}
+
+// Enable and start motor 
+void ub_mcpwm_start_motor(motor_control_context_t *motor_ctrl_ctx, motor_direction dir)
+{
+    ESP_LOGI(TAG, "Enable motor");
+    ESP_ERROR_CHECK(bdc_motor_enable(motor_ctrl_ctx->motor));
+    if (dir == FORWARD) {
+        ESP_LOGI(TAG, "Forward");
+        ESP_ERROR_CHECK(bdc_motor_forward(motor_ctrl_ctx->motor));
+        motor_ctrl_ctx->reverse = false;    
+    }
+    else if (dir == REVERSE)
+    {
+        ESP_LOGI(TAG, "Reverse");
+        ESP_ERROR_CHECK(bdc_motor_reverse(motor_ctrl_ctx->motor));    
+        motor_ctrl_ctx->reverse = true;    
+    }
+    else
+        ESP_LOGE(TAG,"Error: undefined motor direction");   
 }

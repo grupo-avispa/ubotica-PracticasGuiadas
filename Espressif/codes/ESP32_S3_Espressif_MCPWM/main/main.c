@@ -44,13 +44,13 @@ static const char *TAG = "MCPWM_example";
 #define BDC_ENCODER_PCNT_LOW_LIMIT    -1000
 
 #define BDC_PID_LOOP_PERIOD_MS        10   // calculate the motor speed every 10ms
-#define BDC_PID_EXPECT_SPEED          400  // expected motor speed, in the pulses counted by the rotary encoder
+#define BDC_PID_EXPECT_SPEED          70  // expected motor speed, in the pulses counted by the rotary encoder
 
 void app_main(void)
 {
     // -------------------------------------------
     // Create the controller for the left motor
-    motor_control_context_t left_motor_ctrl_ctx;
+    static motor_control_context_t left_motor_ctrl_ctx;
     bdc_motor_handle_t left_motor = NULL;
     // Create DC motor for the left side
     left_motor = ub_mcpwm_create_dc_motor(&left_motor_ctrl_ctx, (gpio_num_t)CONFIG_LEFT_BDC_MCPWM_GPIO_A, (gpio_num_t)CONFIG_LEFT_BDC_MCPWM_GPIO_B,
@@ -62,9 +62,11 @@ void app_main(void)
     // Create quadrature decoder for the left motor
     ub_mcpwm_create_quadrature_decoder(&left_motor_ctrl_ctx, (gpio_num_t)CONFIG_LEFT_BDC_ENCODER_GPIO_A, (gpio_num_t)CONFIG_LEFT_BDC_ENCODER_GPIO_B,
                                     BDC_ENCODER_PCNT_HIGH_LIMIT, BDC_ENCODER_PCNT_LOW_LIMIT);
+ 
     // Create PID controller for the left motor
     ub_mcpwm_create_pid_controller(&left_motor_ctrl_ctx, 0.6, 0.4, 0.2, BDC_MCPWM_DUTY_TICK_MAX - 1, 0);
 
+ 
     // -------------------------------------------
     // Create the controller for the right motor
     motor_control_context_t right_motor_ctrl_ctx;
@@ -81,18 +83,9 @@ void app_main(void)
                                     BDC_ENCODER_PCNT_HIGH_LIMIT, BDC_ENCODER_PCNT_LOW_LIMIT);
     // Create PID controller for the right motor
     ub_mcpwm_create_pid_controller(&right_motor_ctrl_ctx, 0.6, 0.4, 0.2, BDC_MCPWM_DUTY_TICK_MAX - 1, 0);
-
-    // -------------------------------------------
-    // Enable the motors and start them in forward direction
-    ESP_LOGI(TAG, "Enable left motor");
-    ESP_ERROR_CHECK(bdc_motor_enable(left_motor));
-    ESP_LOGI(TAG, "Forward left motor");
-    ESP_ERROR_CHECK(bdc_motor_forward(left_motor));
-
-    ESP_LOGI(TAG, "Enable right motor");
-    ESP_ERROR_CHECK(bdc_motor_enable(right_motor));
-    ESP_LOGI(TAG, "Forward right motor");
-    ESP_ERROR_CHECK(bdc_motor_forward(right_motor));
+    
+    ub_mcpwm_start_motor(&left_motor_ctrl_ctx, FORWARD);
+    ub_mcpwm_start_motor(&right_motor_ctrl_ctx, REVERSE);
 
     // -------------------------------------------
     // Create and start periodic timers for the PID control loops
@@ -102,12 +95,12 @@ void app_main(void)
     esp_timer_handle_t right_pid_loop_timer = ub_mcpwm_create_pid_loop_timer(&right_motor_ctrl_ctx, 
                                     BDC_PID_LOOP_PERIOD_MS);
 
-
     ub_mcpwm_set_motor_desired_speed(&left_motor_ctrl_ctx, BDC_PID_EXPECT_SPEED);
     ub_mcpwm_set_motor_desired_speed(&right_motor_ctrl_ctx, BDC_PID_EXPECT_SPEED);
 
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(100));
+   
         // the following logging format is according to the requirement of serial-studio frame format
         // also see the dashboard config file `serial-studio-dashboard.json` for more information
 #if SERIAL_STUDIO_DEBUG

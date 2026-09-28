@@ -23,9 +23,9 @@
     "board/esp32s3-builtin.cfg"
   ],
   "idf.port": "/dev/ttyACM0",
-  "idf.currentSetup": "/home/jpbandera/.espressif/v6.1/esp-idf",
+  "idf.currentSetup": "/home/jpbandera/.espressif/v5.5.5/esp-idf",
   "idf.customExtraVars": {
     "IDF_TARGET": "esp32s3"
   },
-  "idf.flashType": "UART"
+  "idf.flashType": "JTAG"
 }
