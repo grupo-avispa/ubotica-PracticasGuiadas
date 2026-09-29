@@ -43,8 +43,10 @@ static const char *TAG = "MCPWM_example";
 #define BDC_ENCODER_PCNT_HIGH_LIMIT   1000
 #define BDC_ENCODER_PCNT_LOW_LIMIT    -1000
 
+// About the encoders: they provide aprox. 12000 pulses per wheel revolution (But you need to check it for your motors!). 
+// Counting 30 pulses each 10ms gives aprox. a wheel revolution each 4 seconds.
 #define BDC_PID_LOOP_PERIOD_MS        10   // calculate the motor speed every 10ms
-#define BDC_PID_EXPECT_SPEED          70  // expected motor speed, in the pulses counted by the rotary encoder
+#define BDC_PID_EXPECT_SPEED          30  // expected motor speed, in the pulses counted by the rotary encoder
 
 void app_main(void)
 {

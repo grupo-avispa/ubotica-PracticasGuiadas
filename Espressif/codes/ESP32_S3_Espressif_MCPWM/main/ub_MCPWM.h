@@ -13,6 +13,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// ------------------------------------------------------
+// Microbótica, GIET, Univ. Málaga
+// ------------------------------------------------------
+// This library implements an MCPWM PID controller for a brushed DC motor feed via an H-bridge.
+// It is designed to be used in the 'Microbótica' subject, at GIET (University of Málaga),
+// with the JGA25-371 motors and DRV8871 H-bridges mounted on the robots. Using it for
+// other drivers and brushed motors should be easy.
+
+// The library is adapted from 
+// https://github.com/espressif/esp-idf/tree/v6.1/examples/peripherals/mcpwm/mcpwm_bdc_speed_control
+
 #ifndef _UB_MCPWM_H_
 #define _UB_MCPWM_H_
 
