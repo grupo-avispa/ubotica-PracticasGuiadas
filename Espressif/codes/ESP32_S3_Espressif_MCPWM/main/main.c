@@ -86,8 +86,8 @@ void app_main(void)
     // Create PID controller for the right motor
     ub_mcpwm_create_pid_controller(&right_motor_ctrl_ctx, 0.6, 0.4, 0.2, BDC_MCPWM_DUTY_TICK_MAX - 1, 0);
     
-    ub_mcpwm_start_motor(&left_motor_ctrl_ctx, FORWARD);
-    ub_mcpwm_start_motor(&right_motor_ctrl_ctx, REVERSE);
+    ub_mcpwm_start_motor(&left_motor_ctrl_ctx, REVERSE);
+    ub_mcpwm_start_motor(&right_motor_ctrl_ctx, FORWARD);
 
     // -------------------------------------------
     // Create and start periodic timers for the PID control loops
