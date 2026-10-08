@@ -1,8 +1,19 @@
-/*
- * SPDX-FileCopyrightText: 2010-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: CC0-1.0
- */
+// Copyright (c) 2026 Juan Pedro Bandera Rubio
+// Copyright (c) 2026 Grupo Avispa, DTE, Universidad de Málaga
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Test program for the ub_timerhw library, which provides a C wrapper for the ESP-IDF GPTIMER driver
 
 #include <stdio.h>
 #include <freertos/FreeRTOS.h>
@@ -10,7 +21,7 @@
 #include <freertos/queue.h>
 #include <driver/gptimer.h>
 #include <esp_log.h>
-#include "ub_esp32_s3_timerhw.h"
+#include "ub_timerhw.h"
 #include "sdkconfig.h"
 
 static const char *TAG = "gptimer_example";
@@ -48,15 +59,15 @@ void app_main(void)
     gptimer_handle_t gptimer = NULL;
 
     // create timer
-    ESP_ERROR_CHECK(ub_esp32_s3_timerhw_create(GPTIMER_CLK_SRC_DEFAULT, GPTIMER_COUNT_UP, 
+    ESP_ERROR_CHECK(ub_timerhw_create(GPTIMER_CLK_SRC_DEFAULT, GPTIMER_COUNT_UP, 
         1000000, // 1MHz, 1 tick=1us
         &gptimer));
 
     // configure timer alarm, set a callback function, and enable the timer
-    ESP_ERROR_CHECK(ub_esp32_s3_timerhw_set_alarm(gptimer, 0, 2000000, true, alarm_cb, queue));
+    ESP_ERROR_CHECK(ub_timerhw_set_alarm(gptimer, 0, 2000000, true, alarm_cb, queue));
 
     // start timer
-    ESP_ERROR_CHECK(ub_esp32_s3_timerhw_start(gptimer));
+    ESP_ERROR_CHECK(ub_timerhw_start(gptimer));
 
     // record 4 alarm events, then stop the timer
     int record = 4;
@@ -71,12 +82,12 @@ void app_main(void)
   
     // stop, disable and delete the timer
     ESP_LOGI(TAG, "Stop timer");
-    ESP_ERROR_CHECK(ub_esp32_s3_timerhw_stop(gptimer));
+    ESP_ERROR_CHECK(ub_timerhw_stop(gptimer));
     ESP_LOGI(TAG, "Disable timer");
-    ESP_ERROR_CHECK(ub_esp32_s3_timerhw_disable(gptimer));
+    ESP_ERROR_CHECK(ub_timerhw_disable(gptimer));
     // here we can reconfigure the timer and start it again if needed, or we can delete it when it's no longer used
     ESP_LOGI(TAG, "Delete timer");
-    ESP_ERROR_CHECK(ub_esp32_s3_timerhw_delete(gptimer));
+    ESP_ERROR_CHECK(ub_timerhw_delete(gptimer));
 
     // delete the queue
     vQueueDelete(queue);
