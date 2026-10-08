@@ -1,78 +1,131 @@
-/* 
- * ESP32_ESPIDF_MQTT
- *
- * PlatformIO project using ESPIDF framework to demonstrate MQTT communication on ESP32.
- *
- *  For this example you will just need a ESP32-S3
- * 
- *  Created on: 2024-07-10
- *  Author: Juan Pedro Bandera Rubio, Dpto. de Tecnología Electrónica, Universidad de Málaga
- *  License: TODO!!!
-*/
+// Copyright (c) 2026 Juan Pedro Bandera Rubio
+// Copyright (c) 2026 Grupo Avispa, DTE, Universidad de Málaga
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include <stdio.h>
-
-#include "esp_log.h"
-#include "esp_wifi.h"
+#include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
+#include "freertos/queue.h"
+#include "freertos/event_groups.h"
+#include "nvs_flash.h"
+#include <time.h>
+#include <esp_wifi.h>
+#include <esp_event.h>
+#include <esp_log.h>
+#include <esp_sntp.h>
+#include <driver/gpio.h>
 
-#include "ub_esp32_s3_mqtt.h"
-#include "ub_esp32_s3_wifi.h"
-#include "sdkconfig.h"
+#include "mqtt_client.h"
 
-static const char *TAG = "mqtt_example";
+#include "ub_wifi.h"
+#include "ub_mqtt.h"
 
-// Get the Wi-Fi credentials from the platformio.ini file
-static char* WIFI_SSID = CONFIG_SSID;
-static char* WIFI_PASSWORD = CONFIG_PSSWD;
-// Get the MQTT configuration from the platformio.ini file
-static char* MQTT_BROKER_URL = CONFIG_MQTT_BROKER;
-/*static int MQTT_BROKER_PORT = CONFIG_MQTT_PORT;
-static char* MQTT_USERNAME = CONFIG_MQTT_USERNAME;
-static char* MQTT_PASSWORD = CONFIG_MQTT_PASSWORD;*/
-static char* MQTT_TOPIC = CONFIG_MQTT_TOPIC;
+static const char *TAG = "ub_MQTT_EXAMPLE";
 
+// ------------------------------------------------------------------
+// Functions to synchronize ESP32 time
+// ------------------------------------------------------------------
+void time_sync_notification_cb(struct timeval *tv)
+{
+    ESP_LOGI(TAG, "Notification of a time synchronization event");
+}
+
+static void obtain_time(void)
+{
+    ESP_LOGI(TAG, "Initializing SNTP");
+    sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    sntp_setservername(0, "pool.ntp.org");
+    sntp_set_time_sync_notification_cb(time_sync_notification_cb);
+    
+    sntp_init();    
+    
+    // wait for time to be set
+    time_t now = 0;
+    struct tm timeinfo = { 0 };
+    int retry = 0;
+    const int retry_count = 10;
+    while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET && ++retry < retry_count) {
+        ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
+    }
+    time(&now);
+    localtime_r(&now, &timeinfo);
+}
+
+// ------------------------------------------------------------------
+// app_main 
+// ---------------------------------------------------------------
 void app_main(void)
 {
-    ESP_LOGI(TAG, "Starting Wi-Fi...");
-    ESP_ERROR_CHECK(ub_esp32_s3_wifi_init());
+    ESP_LOGI(TAG, "[APP] Startup..");
+    ESP_LOGI(TAG, "[APP] Free memory: %d bytes", (int)(esp_get_free_heap_size()));
+    ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
 
-    esp_err_t ret = ub_esp32_s3_wifi_connect(WIFI_SSID, WIFI_PASSWORD);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to connect to Wi-Fi network");
+    esp_log_level_set("*", ESP_LOG_INFO);
+    esp_log_level_set("mqtt_client", ESP_LOG_VERBOSE);
+    esp_log_level_set("MQTT_EXAMPLE", ESP_LOG_VERBOSE);
+    esp_log_level_set("TRANSPORT_BASE", ESP_LOG_VERBOSE);
+    esp_log_level_set("esp-tls", ESP_LOG_VERBOSE);
+    esp_log_level_set("TRANSPORT", ESP_LOG_VERBOSE);
+    esp_log_level_set("outbox", ESP_LOG_VERBOSE);
+
+    // Init WiFi
+    ub_wifi_init();
+
+    // Syncrhonize time
+    time_t now;
+    struct tm timeinfo;
+    time(&now);
+    localtime_r(&now, &timeinfo);
+    // Is time set? If not, tm_year will be (1970 - 1900).
+    if (timeinfo.tm_year < (2016 - 1900)) {
+        ESP_LOGI(TAG, "Time is not set yet. Connecting to WiFi and getting time over NTP.");
+        obtain_time();
+        // update 'now' variable with current time
+        time(&now);
     }
+    // Set timezone to Eastern Standard Time and print local time
+    setenv("TZ","CET-1CEST,M3.5.0,M10.5.0/3", 1); // Madrid timezone (UCT+1)
+    tzset();
+    localtime_r(&now, &timeinfo);
+    char strftime_buf[64];
+    strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+    ESP_LOGI(TAG, "The current date/time in Málaga is: %s", strftime_buf);
 
-    wifi_ap_record_t ap_info;
-    ret = esp_wifi_sta_get_ap_info(&ap_info);
-    if (ret == ESP_ERR_WIFI_CONN) {
-        ESP_LOGE(TAG, "Wi-Fi station interface not initialized");
-    }
-    else if (ret == ESP_ERR_WIFI_NOT_CONNECT) {
-        ESP_LOGE(TAG, "Wi-Fi station is not connected");
-    } else {
-        ESP_LOGI(TAG, "--- Access Point Information ---");
-        ESP_LOG_BUFFER_HEX("MAC Address", ap_info.bssid, sizeof(ap_info.bssid));
-        ESP_LOG_BUFFER_CHAR("SSID", ap_info.ssid, sizeof(ap_info.ssid));
-        ESP_LOGI(TAG, "Primary Channel: %d", ap_info.primary);
-        ESP_LOGI(TAG, "RSSI: %d", ap_info.rssi);
-    }
+    // Init MQTT
+    ub_mqtt_init();
 
-    // Initialize and start the MQTT client
-    mqtt_app_start_url(MQTT_BROKER_URL);
+    // Send hello message
+    int msg_id = ub_mqtt_publish("Welcome home sanitarium!", 0, 0);
+    if (msg_id != -1)
+        ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id); // for debug
+    else
+        ESP_LOGI(TAG, "sent publish error, msg_id=%d", msg_id); // for debug
 
-    // Test: Subscribe to a topic to listen for messages
-    mqtt_subscribe(MQTT_TOPIC, 0);
-
-    // Test: Publish a message to the topic
-    const char* message = "Hello from ESP32-S3!";
-    mqtt_publish(MQTT_TOPIC, message, strlen(message), 0, 0);
-
-    // Test: Wait for a while to receive messages
-    vTaskDelay(pdMS_TO_TICKS(10000));
-
-    // Test: Unsubscribe from the topic
-    mqtt_unsubscribe(MQTT_TOPIC);
-
-    // Test: Disconnect from Wi-Fi
-    ret = ub_esp32_s3_wifi_disconnect();
+    // Send test robot data
+    struct robot_data test_robot_data = {
+        .robot_id = 1,
+        .pos_x = 10.5,
+        .pos_y = 20.3,
+        .speed = 5.0,
+        .heading = 90.0
+    };
+    msg_id = ub_mqtt_publish_robot_data(&test_robot_data, 0, 0);
+    if (msg_id != -1)
+        ESP_LOGI(TAG, "sent robot data publish successful, msg_id=%d", msg_id); // for debug
+    else
+        ESP_LOGI(TAG, "sent robot data publish error, msg_id=%d", msg_id); // for debug
 
 }

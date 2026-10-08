@@ -1,7 +1,0 @@
-menu "Blink Configuration"
-    config BLINK_GPIO
-        int "GPIO used to blink the LED"
-        default 4
-        help
-            When using the robot's board, GPIO4 uses red LED, GPIO5 uses blue LED
-endmenu
