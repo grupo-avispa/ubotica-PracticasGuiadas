@@ -65,5 +65,9 @@ void app_main(void)
     // Inits the LIDAR module
     ub_XiaomiLIDAR_init();
 
-    xTaskCreate(lidar_task, "lidar_task", TASK_STACK_SIZE, NULL, 10, NULL);
+    xTaskCreatePinnedToCore(ub_XiaomiLIDAR_SerialReadTask, 
+        "SerialReadTask", TASK_STACK_SIZE, NULL, 1, &ub_XiaomiLIDAR_serialTaskHandle, 0);
+
+
+    //xTaskCreate(lidar_task, "lidar_task", TASK_STACK_SIZE, NULL, 10, NULL);
 }

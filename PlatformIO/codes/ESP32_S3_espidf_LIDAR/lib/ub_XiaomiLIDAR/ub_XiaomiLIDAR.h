@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include <esp_log.h>
 #include "driver/uart.h"
 #include "driver/gpio.h"
 #include "sdkconfig.h"
@@ -42,15 +43,19 @@ typedef struct XiaomiLidarFrame {
     uint8_t frameType;            // Type of frame (e.g., data or health info)
     uint8_t commandWord;          // Command ID that defines the payload structure
     uint16_t parameterLength;     // Length of the parameters/payload
-    uint8_t *parameters;          // Payload data (e.g., distances, angles)
+    uint8_t parameters[65];       // Payload data (e.g., distances, angles)
     uint16_t checksum;            // Checksum for validating the frame
 } XiaomiLidarFrame_t;
+
+static TaskHandle_t ub_XiaomiLIDAR_serialTaskHandle;                 // Task handle for serial reading
 
 // Inits the Xiaomi LIDAR module, setting up UART and GPIO as needed
 void ub_XiaomiLIDAR_init(void);
 
 // Starts the FreeRTOS task that reads data from the Lidar over Serial
-void SerialReadTask(void *pvParameters);
+void ub_XiaomiLIDAR_SerialReadTask(void *arg);
 
+// Processes a Xiaomi Lidar frame: extracts distances, angles and pushes them to the queue 
+bool ub_XiaomiLIDAR_ProcessLidarFrame(XiaomiLidarFrame_t *frame);
 
 #endif // UB_XIAOMI_LIDAR_H
