@@ -177,10 +177,23 @@ void ub_XiaomiLIDAR_SerialReadTask(void *arg)
 // Processes a Xiaomi Lidar frame: extracts distances, angles and pushes them to the queue
 bool ub_XiaomiLIDAR_ProcessLidarFrame(XiaomiLidarFrame_t *frame)
 {
+    float rotation_speed_scale = 3.0f;  // Xiaomi LIDAR conversion factor from speed to RPM (0.05f * 60.0f)
     bool current_frame_is_end_of_scan = false;
-    ESP_LOGI(TAG, "Frame Type: 0x%02X, Command Word: 0x%02X, Parameter Length: %d", 
-        frame->frameType, frame->commandWord, frame->parameterLength);
-
+ 
+    switch (frame->commandWord)
+    {
+    case 0xAE: // Device Health Information
+        float rpm = frame->parameters[0] * rotation_speed_scale;
+        ESP_LOGI(TAG, "Device Health Information: \n");
+        ESP_LOGI(TAG, "RPM: %f\n", rpm);
+        break;
+    case 0xAD: // Scan Data
+        ESP_LOGI(TAG, "Scan Data: \n");
+        break;
+    default:
+        ESP_LOGW(TAG, "Unknown Command Word: 0x%02X", frame->commandWord);
+        break;
+    }
+    
     return current_frame_is_end_of_scan;
-
 }
