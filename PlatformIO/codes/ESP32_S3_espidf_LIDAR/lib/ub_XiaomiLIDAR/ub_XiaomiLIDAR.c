@@ -36,10 +36,32 @@ void ub_XiaomiLIDAR_init(void)
     ESP_ERROR_CHECK(uart_set_pin(UART_PORT_NUM, UART_PIN_NO_CHANGE, CONFIG_UART2_RXD, 
         UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));    
 
-    // Enable lidar motor
-    esp_rom_gpio_pad_select_gpio(CONFIG_LIDAR_EN);
-    ESP_ERROR_CHECK(gpio_set_direction(CONFIG_LIDAR_EN, GPIO_MODE_OUTPUT));
-    ESP_ERROR_CHECK(gpio_set_level(CONFIG_LIDAR_EN, 1));  // Set the GPIO high to enable the LIDAR motor
+    // Enable LIDAR PWM control
+    uint32_t pwm_duty = (CONFIG_LIDAR_PWM_DUTY * ((1 << LEDC_TIMER_13_BIT) - 1)) / 100; // Convert percentage to duty value 
+    // Prepare and then apply the LEDC PWM timer configuration
+    ledc_timer_config_t ledc_timer = {
+        .speed_mode       = LEDC_LOW_SPEED_MODE,
+        .duty_resolution  = LEDC_TIMER_13_BIT, // Set duty resolution to 13 bits
+        .timer_num        = LEDC_TIMER_0,
+        .freq_hz          = CONFIG_LIDAR_PWM_FREQ,  // Set output frequency
+        .clk_cfg          = LEDC_AUTO_CLK,
+    };
+    ESP_ERROR_CHECK(ledc_timer_config(&ledc_timer));
+
+    // Prepare and then apply the LEDC PWM channel configuration
+    ledc_channel_config_t ledc_channel = {
+        .speed_mode     = LEDC_LOW_SPEED_MODE,
+        .channel        = LEDC_CHANNEL_0,
+        .timer_sel      = LEDC_TIMER_0,
+        .gpio_num       = CONFIG_LIDAR_PWM, // GPIO pin for PWM output
+        .duty           = pwm_duty, // Set duty cycle
+        .hpoint         = 0,
+    };
+    ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel));
+    // Set duty cycle
+    ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, pwm_duty));
+    // Update duty to apply the new value
+    ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0));
 }
 
 // Starts the FreeRTOS task that reads data from the Lidar over Serial
@@ -129,10 +151,6 @@ void ub_XiaomiLIDAR_SerialReadTask(void *arg)
                 case 7: // Parameter Length LSB
                     frame.parameterLength |= byte;
                     checksum += byte;
-                    if (frame.parameterLength > 1) {
-                        ESP_LOGI(TAG, "parameterLength: %d", frame.parameterLength);
-                        status = 0;
-                    }
                     reading_mark = 0;
                     status = 8;
                     break;                                            
@@ -184,8 +202,8 @@ bool ub_XiaomiLIDAR_ProcessLidarFrame(XiaomiLidarFrame_t *frame)
     {
     case 0xAE: // Device Health Information
         float rpm = frame->parameters[0] * rotation_speed_scale;
-        ESP_LOGI(TAG, "Device Health Information: \n");
-        ESP_LOGI(TAG, "RPM: %f\n", rpm);
+        // ESP_LOGI(TAG, "Device Health Information: \n");
+        // ESP_LOGI(TAG, "RPM: %f\n", rpm);
         break;
     case 0xAD: // Scan Data
         ESP_LOGI(TAG, "Scan Data: \n");

@@ -63,6 +63,7 @@ static void lidar_task(void *arg)
 void app_main(void)
 {
     // Inits the LIDAR module
+
     ub_XiaomiLIDAR_init();
 
     xTaskCreatePinnedToCore(ub_XiaomiLIDAR_SerialReadTask, 

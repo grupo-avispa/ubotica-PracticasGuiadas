@@ -20,8 +20,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <esp_log.h>
-#include "driver/uart.h"
-#include "driver/gpio.h"
+#include <driver/uart.h>
+#include <driver/gpio.h>
+#include <driver/ledc.h>
 #include "sdkconfig.h"
 
 #define TEST_TXD (UART_PIN_NO_CHANGE)
@@ -43,7 +44,7 @@ typedef struct XiaomiLidarFrame {
     uint8_t frameType;            // Type of frame (e.g., data or health info)
     uint8_t commandWord;          // Command ID that defines the payload structure
     uint16_t parameterLength;     // Length of the parameters/payload
-    uint8_t parameters[65];       // Payload data (e.g., distances, angles)
+    uint8_t parameters[100];      // Payload data (e.g., distances, angles)
     uint16_t checksum;            // Checksum for validating the frame
 } XiaomiLidarFrame_t;
 
