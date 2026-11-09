@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 #include <esp_log.h>
 #include <driver/uart.h>
 #include <driver/gpio.h>
@@ -36,6 +37,13 @@
 
 #define BUF_SIZE (1024)
 
+// XIAOMI LIDAR defined constants
+#define XIAOMI_LIDAR_FRAME_HEADER 0xAA
+#define XIAOMI_LIDAR_PROTOCOL_VERSION 0x01
+#define XIAOMI_LIDAR_FRAME_TYPE 0x61
+#define XIAOMI_LIDAR_END_OF_SCAN 65535
+
+
 // Data structure representing a parsed frame from the Xiaomi Lidar
 typedef struct XiaomiLidarFrame {
     uint8_t frameHeader;          // Frame header (usually 0xAA)
@@ -48,7 +56,9 @@ typedef struct XiaomiLidarFrame {
     uint16_t checksum;            // Checksum for validating the frame
 } XiaomiLidarFrame_t;
 
-static TaskHandle_t ub_XiaomiLIDAR_serialTaskHandle;                 // Task handle for serial reading
+static TaskHandle_t ub_XiaomiLIDAR_serialTaskHandle;    // Task handle for serial reading
+static TaskHandle_t getClosestTaskHandle;               // Task handle for detecting the closest object
+static QueueHandle_t lidar_data_queue;                  // Queue used to pass scan data between tasks
 
 // Inits the Xiaomi LIDAR module, setting up UART and GPIO as needed
 void ub_XiaomiLIDAR_init(void);
@@ -57,6 +67,6 @@ void ub_XiaomiLIDAR_init(void);
 void ub_XiaomiLIDAR_SerialReadTask(void *arg);
 
 // Processes a Xiaomi Lidar frame: extracts distances, angles and pushes them to the queue 
-bool ub_XiaomiLIDAR_ProcessLidarFrame(XiaomiLidarFrame_t *frame);
+bool ub_XiaomiLIDAR_ProcessLidarFrame(XiaomiLidarFrame_t frame);
 
 #endif // UB_XIAOMI_LIDAR_H

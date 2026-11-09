@@ -36,6 +36,9 @@ void ub_XiaomiLIDAR_init(void)
     ESP_ERROR_CHECK(uart_set_pin(UART_PORT_NUM, UART_PIN_NO_CHANGE, CONFIG_UART2_RXD, 
         UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));    
 
+    // Create FreeRTOS queue for communication between tasks
+    lidar_data_queue = xQueueCreate(600, sizeof(uint16_t));
+    
     // Enable LIDAR PWM control
     uint32_t pwm_duty = (CONFIG_LIDAR_PWM_DUTY * ((1 << LEDC_TIMER_13_BIT) - 1)) / 100; // Convert percentage to duty value 
     // Prepare and then apply the LEDC PWM timer configuration
@@ -99,7 +102,7 @@ void ub_XiaomiLIDAR_SerialReadTask(void *arg)
             switch (status)
             {
                 case 0: // Waiting for header
-                    if (byte == 0xAA)
+                    if (byte == XIAOMI_LIDAR_FRAME_HEADER)
                     {
                         frame.frameHeader = byte;
                         checksum = byte;
@@ -119,7 +122,7 @@ void ub_XiaomiLIDAR_SerialReadTask(void *arg)
                 case 3: // Reading protocol version
                     frame.protocolVersion = byte;
                     checksum += byte;
-                    if (frame.protocolVersion == 0x01) {
+                    if (frame.protocolVersion == XIAOMI_LIDAR_PROTOCOL_VERSION) {
                         status = 4;
                     }
                     else {
@@ -130,7 +133,7 @@ void ub_XiaomiLIDAR_SerialReadTask(void *arg)
                 case 4: // Reading frame type
                     frame.frameType = byte;
                     checksum += byte;
-                    if (frame.frameType == 0x61) {
+                    if (frame.frameType == XIAOMI_LIDAR_FRAME_TYPE) {
                         status = 5;
                     }
                     else {
@@ -170,7 +173,8 @@ void ub_XiaomiLIDAR_SerialReadTask(void *arg)
                     frame.checksum |= byte;
                     if (frame.checksum == checksum)
                     {
-                        current_frame_is_end_of_scan = ub_XiaomiLIDAR_ProcessLidarFrame(&frame);
+                        XiaomiLidarFrame_t frame_completed = frame; // Create a copy of the frame to pass to the processing function
+                        current_frame_is_end_of_scan = ub_XiaomiLIDAR_ProcessLidarFrame(frame_completed);
                     }
                     else
                     {
@@ -193,23 +197,105 @@ void ub_XiaomiLIDAR_SerialReadTask(void *arg)
 }
 
 // Processes a Xiaomi Lidar frame: extracts distances, angles and pushes them to the queue
-bool ub_XiaomiLIDAR_ProcessLidarFrame(XiaomiLidarFrame_t *frame)
+bool ub_XiaomiLIDAR_ProcessLidarFrame(XiaomiLidarFrame_t frame)
 {
+    static uint16_t last_start_angle = 0;
+
     float rotation_speed_scale = 3.0f;  // Xiaomi LIDAR conversion factor from speed to RPM (0.05f * 60.0f)
+    float angle_scale = 0.01f; // Xiaomi LIDAR conversion factor from angle to degrees (0.01f)
+    float range_scale = 0.25f * 0.001f; // Xiaomi LIDAR conversion factor from range to meters (0.25f * 0.001f)
     bool current_frame_is_end_of_scan = false;
  
-    switch (frame->commandWord)
+    switch (frame.commandWord)
     {
     case 0xAE: // Device Health Information
-        float rpm = frame->parameters[0] * rotation_speed_scale;
+        float rpm = frame.parameters[0] * rotation_speed_scale;
         // ESP_LOGI(TAG, "Device Health Information: \n");
         // ESP_LOGI(TAG, "RPM: %f\n", rpm);
         break;
     case 0xAD: // Scan Data
-        ESP_LOGI(TAG, "Scan Data: \n");
+        // parameters array structure:
+        // [0] - Rotation speed (need to apply the rotation_speed_scale factor to get RPM)
+
+        ESP_LOGI(TAG, "Scan Data:");
+
+        // Get the minimum distance and corresponding angle from the parameters
+        float min_distance = range_scale * (float)(XIAOMI_LIDAR_END_OF_SCAN); // Initialize to maximum possible distance
+        uint16_t min_distance_angle = 0;
+        uint16_t start_angle_read = (frame.parameters[3] << 8) | frame.parameters[4];
+        float start_angle = angle_scale * (float)start_angle_read; // Convert to degrees
+        uint16_t min_distance_quality = 0; // Quality value corresponding to the minimum distance
+
+        int sample_cnt = (int)(((frame.parameterLength - 5) / 3));
+        ESP_LOGI(TAG, "all measures:");
+        for ( int i = 0; i < sample_cnt; i++ )
+        {
+            uint16_t quality = (frame.parameters[5 + (i * 3)]); // Quality value, not used in this example
+            uint16_t distance_read = (frame.parameters[5 + (i * 3) + 1] << 8) | frame.parameters[5 + (i * 3) + 2];
+            float distance = range_scale * (float)distance_read; // Convert to meters
+            float angle = start_angle + (i * 360.0f / sample_cnt); // Calculate the angle corresponding to this sample
+            if (angle >= 360.0f) {
+                angle -= 360.0f; // Wrap around if angle exceeds 360 degrees
+            }
+            
+            ESP_LOGI(TAG, "Sample %d: Distance: %f m, Angle: %f degrees, Quality: %d", i, distance, angle, quality);
+
+            if ( (distance < min_distance)&&(quality > 0) )
+            {
+                min_distance = distance;
+                min_distance_angle = angle; // Use the calculated angle
+                min_distance_quality = quality;
+            }
+        }
+        
+        // TODO: Need zero-crossing detection to create meaningful frames!!!
+        // A frame is NOT a complete 360-degree scan, it is just a packet of data. We need to detect when the LIDAR crosses the 0-degree mark to know when a full scan has been completed.
+
+
+
+        ESP_LOGI(TAG, "RPM: %f", frame.parameters[0] * rotation_speed_scale);
+        ESP_LOGI(TAG, "Start Angle: %f degrees , sample count: %d", start_angle, sample_cnt);
+        ESP_LOGI(TAG, "Minimum Distance: %f m at Angle: %d degrees, with quality %d\n", 
+            min_distance, min_distance_angle, min_distance_quality);
+        
+        // int sample_cnt = (int)(((frame.parameterLength - 5) / 3));
+        // for (int i = 0; i < sample_cnt; i++)
+        // {
+        //     uint16_t distance = (frame.parameters[5 + (i * 3) + 1] << 8) | frame.parameters[5 + (i * 3) + 2];
+            
+        //     // Any distance can be end of scan marker evasion
+        //     if (distance == XIAOMI_LIDAR_END_OF_SCAN)
+        //     {
+        //         distance = XIAOMI_LIDAR_END_OF_SCAN - 1;
+        //     }
+            
+        //     // Mandamos solo la distancia a la cola
+        //     if (xQueueSend(lidar_data_queue, &distance, portMAX_DELAY) != pdTRUE)
+        //     {
+        //         ESP_LOGE(TAG, "ERROR: Failed to send scan data to queue");
+        //     }
+        // }
+
+        // // DETECCIÓN DE CRUCE POR CERO
+        // // Si el ángulo inicial de este paquete es menor que el del paquete anterior,
+        // // significa que el Lidar ha cruzado físicamente la marca de los 0 grados.
+        // if (start_angle < last_start_angle)
+        // {
+        //     uint16_t end_of_scan = XIAOMI_LIDAR_END_OF_SCAN;
+        //     if (xQueueSend(lidar_data_queue, &end_of_scan, portMAX_DELAY) != pdTRUE)
+        //     {
+        //         ESP_LOGE(TAG, "ERROR: Failed to send end of scan to queue");
+        //     }
+        //     current_frame_is_end_of_scan = true;
+        // }
+        
+        // // Actualizamos el ángulo para compararlo en la siguiente iteración
+        // last_start_angle = start_angle;        
+
+
         break;
     default:
-        ESP_LOGW(TAG, "Unknown Command Word: 0x%02X", frame->commandWord);
+        ESP_LOGW(TAG, "Unknown Command Word: 0x%02X", frame.commandWord);
         break;
     }
     
