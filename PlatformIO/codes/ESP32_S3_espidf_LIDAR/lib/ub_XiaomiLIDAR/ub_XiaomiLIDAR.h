@@ -13,6 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This library provides functions to interface with the Xiaomi LIDAR module installed 
+// on the microbot. The concrete LIDAR is a Xiaomi LIDAR Delta-2a
+
 #ifndef UB_XIAOMI_LIDAR_H
 #define UB_XIAOMI_LIDAR_H
 
@@ -43,7 +46,6 @@
 #define XIAOMI_LIDAR_FRAME_TYPE 0x61
 #define XIAOMI_LIDAR_END_OF_SCAN 65535
 
-
 // Data structure representing a parsed frame from the Xiaomi Lidar
 typedef struct XiaomiLidarFrame {
     uint8_t frameHeader;          // Frame header (usually 0xAA)
@@ -56,6 +58,11 @@ typedef struct XiaomiLidarFrame {
     uint16_t checksum;            // Checksum for validating the frame
 } XiaomiLidarFrame_t;
 
+static float rotation_speed_scale = 3.0f;      // Xiaomi LIDAR conversion factor from speed to RPM (0.05f * 60.0f)
+static float angle_scale = 0.01f;              // Xiaomi LIDAR conversion factor from angle to degrees (0.01f)
+static float range_scale = 0.25f * 0.001f;     // Xiaomi LIDAR conversion factor from range to meters (0.25f * 0.001f)
+static float degrees_per_sample = 0.9f;        // Xiaomi LIDAR degrees per sample
+
 static TaskHandle_t ub_XiaomiLIDAR_serialTaskHandle;    // Task handle for serial reading
 static TaskHandle_t getClosestTaskHandle;               // Task handle for detecting the closest object
 static QueueHandle_t lidar_data_queue;                  // Queue used to pass scan data between tasks
@@ -65,6 +72,9 @@ void ub_XiaomiLIDAR_init(void);
 
 // Starts the FreeRTOS task that reads data from the Lidar over Serial
 void ub_XiaomiLIDAR_SerialReadTask(void *arg);
+
+// Starts the FreeRTOS task that processes the Lidar data to find the closest object
+void ub_XiaomiLIDAR_GetClosestObjectTask(void *arg);
 
 // Processes a Xiaomi Lidar frame: extracts distances, angles and pushes them to the queue 
 bool ub_XiaomiLIDAR_ProcessLidarFrame(XiaomiLidarFrame_t frame);

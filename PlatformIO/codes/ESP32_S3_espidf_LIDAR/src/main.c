@@ -31,35 +31,6 @@
 
 const static char *TAG = "lidar_example";
 
-static void lidar_task(void *arg)
-{
-    /* Configure parameters of an UART driver,
-     * communication pins and install the driver */
-    uart_config_t uart_config = {
-        .baud_rate = UART_BAUD_RATE,
-        .data_bits = UART_DATA_8_BITS,
-        .parity    = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_APB,
-    };
-    int intr_alloc_flags = 0;
-
-    ESP_ERROR_CHECK(uart_driver_install(UART_PORT_NUM, BUF_SIZE * 2, 0, 0, NULL, intr_alloc_flags));
-    ESP_ERROR_CHECK(uart_param_config(UART_PORT_NUM, &uart_config));
-    ESP_ERROR_CHECK(uart_set_pin(UART_PORT_NUM, TEST_TXD, TEST_RXD, TEST_RTS, TEST_CTS));
-
-    // Configure a temporary buffer for the incoming data
-    uint8_t *data = (uint8_t *) malloc(BUF_SIZE);
-
-    while (1) {
-        // Read data from the UART. 
-        int len = uart_read_bytes(UART_PORT_NUM, data, BUF_SIZE, 20 / portTICK_PERIOD_MS);
-        // Write data back to the UART
-        uart_write_bytes(UART_PORT_NUM, (const char *) data, len);
-    }
-}
-
 void app_main(void)
 {
     // Inits the LIDAR module
@@ -68,7 +39,7 @@ void app_main(void)
 
     xTaskCreatePinnedToCore(ub_XiaomiLIDAR_SerialReadTask, 
         "SerialReadTask", TASK_STACK_SIZE, NULL, 1, &ub_XiaomiLIDAR_serialTaskHandle, 0);
+    xTaskCreatePinnedToCore(ub_XiaomiLIDAR_GetClosestObjectTask, 
+       "GetClosestObjectTask", TASK_STACK_SIZE, NULL, 2, &getClosestTaskHandle, 1);        
 
-
-    //xTaskCreate(lidar_task, "lidar_task", TASK_STACK_SIZE, NULL, 10, NULL);
 }

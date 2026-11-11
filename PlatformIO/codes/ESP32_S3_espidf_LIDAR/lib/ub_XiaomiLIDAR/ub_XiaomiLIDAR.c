@@ -37,7 +37,7 @@ void ub_XiaomiLIDAR_init(void)
         UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));    
 
     // Create FreeRTOS queue for communication between tasks
-    lidar_data_queue = xQueueCreate(600, sizeof(uint16_t));
+    lidar_data_queue = xQueueCreate(1000, sizeof(float));
     
     // Enable LIDAR PWM control
     uint32_t pwm_duty = (CONFIG_LIDAR_PWM_DUTY * ((1 << LEDC_TIMER_13_BIT) - 1)) / 100; // Convert percentage to duty value 
@@ -72,6 +72,11 @@ void ub_XiaomiLIDAR_init(void)
 void ub_XiaomiLIDAR_SerialReadTask(void *arg)
 {
     static int status = 0;
+
+    static int last_sample_count = 0;
+    static float last_start_angle = 0.0f;
+    static bool last_frame_is_scan_valid = false;
+
     static uint16_t checksum = 0;
     static XiaomiLidarFrame_t frame;
     /* A dataframe is formed by:
@@ -85,8 +90,6 @@ void ub_XiaomiLIDAR_SerialReadTask(void *arg)
         + The checksum, which is 2 bytes (MSB and LSB)
         + The checksum calculation does not include the last 2 bytes of the frame (the proper checksum bytes)
     */
-
-    bool current_frame_is_end_of_scan = false;
 
     uint8_t data[128];
     uint16_t reading_mark = 0;
@@ -127,6 +130,7 @@ void ub_XiaomiLIDAR_SerialReadTask(void *arg)
                     }
                     else {
                         ESP_LOGE(TAG, "ERROR: Protocol Version");
+                        last_frame_is_scan_valid = false;
                         status = 0;
                     }
                     break;
@@ -138,6 +142,7 @@ void ub_XiaomiLIDAR_SerialReadTask(void *arg)
                     }
                     else {
                         ESP_LOGE(TAG, "ERROR: Frame Type");
+                        last_frame_is_scan_valid = false;
                         status = 0;
                     }
                     break;  
@@ -173,18 +178,21 @@ void ub_XiaomiLIDAR_SerialReadTask(void *arg)
                     frame.checksum |= byte;
                     if (frame.checksum == checksum)
                     {
+                        // frame is valid, process it
                         XiaomiLidarFrame_t frame_completed = frame; // Create a copy of the frame to pass to the processing function
-                        current_frame_is_end_of_scan = ub_XiaomiLIDAR_ProcessLidarFrame(frame_completed);
+                        bool is_the_end_of_scan = ub_XiaomiLIDAR_ProcessLidarFrame(frame_completed);
+                        // Check end of scan
+                        if (is_the_end_of_scan)
+                        {
+                            vTaskDelay(10); // Delay to allow the queue to process the end of scan marker
+                        }
                     }
                     else
                     {
                         ESP_LOGE(TAG, "ERROR: Checksum mismatch");
+                        last_frame_is_scan_valid = false;
                     }
                     status = 0;
-                    if (current_frame_is_end_of_scan)
-                    {
-                        vTaskDelay(10);
-                    }
                     break;  
             }
             if (status < 10 && status > 0)
@@ -199,13 +207,9 @@ void ub_XiaomiLIDAR_SerialReadTask(void *arg)
 // Processes a Xiaomi Lidar frame: extracts distances, angles and pushes them to the queue
 bool ub_XiaomiLIDAR_ProcessLidarFrame(XiaomiLidarFrame_t frame)
 {
-    static uint16_t last_start_angle = 0;
+    bool is_end_of_scan = false;
+    static float last_start_angle = 0.0f;
 
-    float rotation_speed_scale = 3.0f;  // Xiaomi LIDAR conversion factor from speed to RPM (0.05f * 60.0f)
-    float angle_scale = 0.01f; // Xiaomi LIDAR conversion factor from angle to degrees (0.01f)
-    float range_scale = 0.25f * 0.001f; // Xiaomi LIDAR conversion factor from range to meters (0.25f * 0.001f)
-    bool current_frame_is_end_of_scan = false;
- 
     switch (frame.commandWord)
     {
     case 0xAE: // Device Health Information
@@ -215,89 +219,128 @@ bool ub_XiaomiLIDAR_ProcessLidarFrame(XiaomiLidarFrame_t frame)
         break;
     case 0xAD: // Scan Data
         // parameters array structure:
-        // [0] - Rotation speed (need to apply the rotation_speed_scale factor to get RPM)
+        // TODO
 
-        ESP_LOGI(TAG, "Scan Data:");
+        //ESP_LOGI(TAG, "Scan Data:");
 
-        // Get the minimum distance and corresponding angle from the parameters
-        float min_distance = range_scale * (float)(XIAOMI_LIDAR_END_OF_SCAN); // Initialize to maximum possible distance
-        uint16_t min_distance_angle = 0;
         uint16_t start_angle_read = (frame.parameters[3] << 8) | frame.parameters[4];
         float start_angle = angle_scale * (float)start_angle_read; // Convert to degrees
-        uint16_t min_distance_quality = 0; // Quality value corresponding to the minimum distance
 
         int sample_cnt = (int)(((frame.parameterLength - 5) / 3));
-        ESP_LOGI(TAG, "all measures:");
+        //ESP_LOGI(TAG, "all measures:");
         for ( int i = 0; i < sample_cnt; i++ )
         {
             uint16_t quality = (frame.parameters[5 + (i * 3)]); // Quality value, not used in this example
             uint16_t distance_read = (frame.parameters[5 + (i * 3) + 1] << 8) | frame.parameters[5 + (i * 3) + 2];
+            if (distance_read == XIAOMI_LIDAR_END_OF_SCAN)
+            {
+                distance_read = XIAOMI_LIDAR_END_OF_SCAN - 1; // Avoid using the end of scan marker as a valid distance
+            }
             float distance = range_scale * (float)distance_read; // Convert to meters
-            float angle = start_angle + (i * 360.0f / sample_cnt); // Calculate the angle corresponding to this sample
+            float angle = start_angle + (i * degrees_per_sample); // Calculate the angle corresponding to this sample
+            
+            // CHECK JP: Invert the angle
+            angle = 360.0f - angle; // Invert the angle to match the expected coordinate system
+
             if (angle >= 360.0f) {
                 angle -= 360.0f; // Wrap around if angle exceeds 360 degrees
             }
-            
-            ESP_LOGI(TAG, "Sample %d: Distance: %f m, Angle: %f degrees, Quality: %d", i, distance, angle, quality);
 
-            if ( (distance < min_distance)&&(quality > 0) )
-            {
-                min_distance = distance;
-                min_distance_angle = angle; // Use the calculated angle
-                min_distance_quality = quality;
-            }
+            // if quality is not 0, send the angle and distance to the queue for further processing
+            if (quality > 0) {
+                // Send angle and distance to the queue for further processing
+                if (xQueueSend(lidar_data_queue, &angle, portMAX_DELAY) != pdTRUE) {
+                    ESP_LOGE(TAG, "ERROR: Failed to send scan angle %i to queue", i);
+                }
+                if (xQueueSend(lidar_data_queue, &distance, portMAX_DELAY) != pdTRUE){
+                    ESP_LOGE(TAG, "ERROR: Failed to send scan distance %i to queue", i);
+                }
+            }           
+            //ESP_LOGI(TAG, "Sample %d: Distance: %f m, Angle: %f degrees, Quality: %d", i, distance, angle, quality);
         }
         
-        // TODO: Need zero-crossing detection to create meaningful frames!!!
-        // A frame is NOT a complete 360-degree scan, it is just a packet of data. We need to detect when the LIDAR crosses the 0-degree mark to know when a full scan has been completed.
-
-
-
-        ESP_LOGI(TAG, "RPM: %f", frame.parameters[0] * rotation_speed_scale);
-        ESP_LOGI(TAG, "Start Angle: %f degrees , sample count: %d", start_angle, sample_cnt);
-        ESP_LOGI(TAG, "Minimum Distance: %f m at Angle: %d degrees, with quality %d\n", 
-            min_distance, min_distance_angle, min_distance_quality);
-        
-        // int sample_cnt = (int)(((frame.parameterLength - 5) / 3));
-        // for (int i = 0; i < sample_cnt; i++)
-        // {
-        //     uint16_t distance = (frame.parameters[5 + (i * 3) + 1] << 8) | frame.parameters[5 + (i * 3) + 2];
-            
-        //     // Any distance can be end of scan marker evasion
-        //     if (distance == XIAOMI_LIDAR_END_OF_SCAN)
-        //     {
-        //         distance = XIAOMI_LIDAR_END_OF_SCAN - 1;
-        //     }
-            
-        //     // Mandamos solo la distancia a la cola
-        //     if (xQueueSend(lidar_data_queue, &distance, portMAX_DELAY) != pdTRUE)
-        //     {
-        //         ESP_LOGE(TAG, "ERROR: Failed to send scan data to queue");
-        //     }
-        // }
-
-        // // DETECCIÓN DE CRUCE POR CERO
-        // // Si el ángulo inicial de este paquete es menor que el del paquete anterior,
-        // // significa que el Lidar ha cruzado físicamente la marca de los 0 grados.
-        // if (start_angle < last_start_angle)
-        // {
-        //     uint16_t end_of_scan = XIAOMI_LIDAR_END_OF_SCAN;
-        //     if (xQueueSend(lidar_data_queue, &end_of_scan, portMAX_DELAY) != pdTRUE)
-        //     {
-        //         ESP_LOGE(TAG, "ERROR: Failed to send end of scan to queue");
-        //     }
-        //     current_frame_is_end_of_scan = true;
-        // }
-        
-        // // Actualizamos el ángulo para compararlo en la siguiente iteración
-        // last_start_angle = start_angle;        
-
-
+        // Zero-crossing detection: if the start angle of the current frame is less than the last start angle, 
+        //it indicates that a full 360-degree scan has been completed
+        if (start_angle < last_start_angle)
+        {
+            float end_of_scan = (float)XIAOMI_LIDAR_END_OF_SCAN;
+            // Send the end of scan marker to the queue to indicate that a full scan has been completed
+            if (xQueueSend(lidar_data_queue, &end_of_scan, portMAX_DELAY) != pdTRUE)
+            {
+                ESP_LOGE(TAG, "ERROR: Failed to send end of scan to queue");
+            }
+            is_end_of_scan = true;
+        }    
+        // Update the last start angle for the next frame processing
+        last_start_angle = start_angle;        
         break;
     default:
         ESP_LOGW(TAG, "Unknown Command Word: 0x%02X", frame.commandWord);
         break;
     }
     
-    return current_frame_is_end_of_scan;
+    return is_end_of_scan; // Return whether the scan was valid or not
+}
+
+// Starts the FreeRTOS task that gets the closest object based on the Lidar data
+// ---  This task is intended to be the base over with the students can create a more complex task,
+//      that sends the LIDAR data via microROS2 to navigate the robot, or whatever
+// This function should be called in a FreeRTOS task context
+void ub_XiaomiLIDAR_GetClosestObjectTask(void *arg)
+{
+    float samples[1000]; // Buffer to store distance samples
+    float scan;
+    bool end_of_scan_received = false;
+    uint16_t sample_count = 0;
+
+    while (true)
+    {
+        // Store all the samples as angle-distance pairs in the buffer until the end of scan marker is received
+        if (xQueueReceive(lidar_data_queue, &scan, portMAX_DELAY) == pdTRUE)
+        {            
+            if (uxQueueMessagesWaiting(lidar_data_queue) > 590)
+            {
+                ESP_LOGI(TAG, "Queue size: %d\n", uxQueueMessagesWaiting(lidar_data_queue));
+            }
+            
+            // If we receive the end of scan marker, we have a full 360º scan
+            if (scan == XIAOMI_LIDAR_END_OF_SCAN)
+            {
+                end_of_scan_received = true;
+            }
+            else
+            {
+                // store the scan in the buffer for processing
+                if (sample_count < 1000) {
+                    samples[sample_count++] = scan;
+                }
+                else {
+                    ESP_LOGW(TAG, "Sample buffer overflow, discarding data");
+                }
+            } 
+            
+            // Check if we received the end of scan signal
+            if (end_of_scan_received)
+            {
+                // Process the collected samples to find the closest object
+                float closest_distance = 100.0f; // Initialize to a large value (e.g., 100 meters)
+                uint16_t closest_angle = 0;
+                for (uint16_t i = 0; i < sample_count-1; i=i+2) // Increment by 2 to process angle-distance pairs
+                {
+                    float distance = samples[i+1]; // Distance is stored in the next index
+                    float angle = samples[i]; // Angle is stored in the current index
+                    if (distance < closest_distance)
+                    {
+                        closest_distance = distance;
+                        closest_angle = angle;
+                    }
+                    ESP_LOGI(TAG, "Sample %d: Angle: %f degrees, Distance: %f m", i/2, angle, distance);
+                }
+                ESP_LOGI(TAG, "Closest Object: Angle: %d degrees, Distance: %f m\n", closest_angle, closest_distance);
+                // Reset the sample count for the next scan
+                sample_count = 0;                    
+                end_of_scan_received = false;
+            }
+        }
+    }
 }
