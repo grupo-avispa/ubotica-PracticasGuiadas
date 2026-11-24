@@ -40,7 +40,7 @@ void ub_XiaomiLIDAR_init(void)
     lidar_data_queue = xQueueCreate(1000, sizeof(float));
     
     // Enable LIDAR PWM control
-    uint32_t pwm_duty = (CONFIG_LIDAR_PWM_DUTY * ((1 << LEDC_TIMER_13_BIT) - 1)) / 100; // Convert percentage to duty value 
+    current_duty = (CONFIG_LIDAR_PWM_DUTY * ((1 << LEDC_TIMER_13_BIT) - 1)) / 100; // Convert percentage to duty value 
     // Prepare and then apply the LEDC PWM timer configuration
     ledc_timer_config_t ledc_timer = {
         .speed_mode       = LEDC_LOW_SPEED_MODE,
@@ -57,12 +57,12 @@ void ub_XiaomiLIDAR_init(void)
         .channel        = LEDC_CHANNEL_0,
         .timer_sel      = LEDC_TIMER_0,
         .gpio_num       = CONFIG_LIDAR_PWM, // GPIO pin for PWM output
-        .duty           = pwm_duty, // Set duty cycle
+        .duty           = current_duty, // Set duty cycle
         .hpoint         = 0,
     };
     ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel));
     // Set duty cycle
-    ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, pwm_duty));
+    ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, current_duty));
     // Update duty to apply the new value
     ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0));
 }
@@ -213,9 +213,30 @@ bool ub_XiaomiLIDAR_ProcessLidarFrame(XiaomiLidarFrame_t frame)
     switch (frame.commandWord)
     {
     case 0xAE: // Device Health Information
-        float rpm = frame.parameters[0] * rotation_speed_scale;
+        float read_rpm = frame.parameters[0] * rotation_speed_scale;
         ESP_LOGI(TAG, "Device Health Information: \n");
-        ESP_LOGI(TAG, "RPM: %f\n", rpm);
+        ESP_LOGI(TAG, "RPM: %f\n", read_rpm);
+        // Simple controller to adjust the PWM duty cycle based on the current RPM
+        float error = desired_rpm - read_rpm;
+        if (error > 0) {
+            if (current_duty < ((1 << LEDC_TIMER_13_BIT) - 1)) {
+                current_duty += 1; // Increase duty cycle to speed up (clamped to max)
+            }
+            else {
+                current_duty = ((1 << LEDC_TIMER_13_BIT) - 1); // Clamp to max
+            }
+        } else if (error < 0) {
+            if (current_duty > 0) {
+                current_duty -= 1; // Decrease duty cycle to slow down
+            }
+            else {
+                current_duty = 0; // Clamp to min
+            }
+        }
+        // Update the PWM duty cycle
+        ESP_ERROR_CHECK(ledc_set_duty_and_update(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, current_duty, 0));
+        // update the current RPM variable
+        current_rpm = read_rpm;
         break;
     case 0xAD: // Scan Data
         // parameters array structure:

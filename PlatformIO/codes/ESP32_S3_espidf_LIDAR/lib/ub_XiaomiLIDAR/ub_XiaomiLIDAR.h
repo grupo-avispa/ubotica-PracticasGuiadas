@@ -63,6 +63,10 @@ static float angle_scale = 0.01f;              // Xiaomi LIDAR conversion factor
 static float range_scale = 0.25f * 0.001f;     // Xiaomi LIDAR conversion factor from range to meters (0.25f * 0.001f)
 static float degrees_per_sample = 0.9f;        // Xiaomi LIDAR degrees per sample
 
+static float current_rpm = 0.0f; // Current RPM of the LIDAR, updated with each frame
+static uint32_t current_duty = 0.0f; // Current PWM duty cycle, updated with each frame
+static float desired_rpm = 305.0f; // Desired RPM for the LIDAR, can be adjusted as needed
+
 static TaskHandle_t ub_XiaomiLIDAR_serialTaskHandle;    // Task handle for serial reading
 static TaskHandle_t getClosestTaskHandle;               // Task handle for detecting the closest object
 static QueueHandle_t lidar_data_queue;                  // Queue used to pass scan data between tasks
