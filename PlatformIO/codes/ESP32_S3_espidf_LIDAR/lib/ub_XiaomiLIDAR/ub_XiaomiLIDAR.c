@@ -214,8 +214,6 @@ bool ub_XiaomiLIDAR_ProcessLidarFrame(XiaomiLidarFrame_t frame)
     {
     case 0xAE: // Device Health Information
         float read_rpm = frame.parameters[0] * rotation_speed_scale;
-        ESP_LOGI(TAG, "Device Health Information: \n");
-        ESP_LOGI(TAG, "RPM: %f\n", read_rpm);
         // Simple controller to adjust the PWM duty cycle based on the current RPM
         float error = desired_rpm - read_rpm;
         if (error > 0) {
@@ -237,6 +235,8 @@ bool ub_XiaomiLIDAR_ProcessLidarFrame(XiaomiLidarFrame_t frame)
         ESP_ERROR_CHECK(ledc_set_duty_and_update(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, current_duty, 0));
         // update the current RPM variable
         current_rpm = read_rpm;
+        ESP_LOGI(TAG, "Device Health Information:");
+        ESP_LOGI(TAG, "Read RPM: %f, moving to duty cycle: %i", read_rpm, current_duty);
         break;
     case 0xAD: // Scan Data
         // parameters array structure:
@@ -278,9 +278,6 @@ bool ub_XiaomiLIDAR_ProcessLidarFrame(XiaomiLidarFrame_t frame)
                 }
             }           
             //ESP_LOGI(TAG, "Sample %d: Distance: %f m, Angle: %f degrees, Quality: %d", i, distance, angle, quality);
-            float rpm = frame.parameters[0] * rotation_speed_scale;
-            ESP_LOGI(TAG, "Device Health Information: \n");
-            ESP_LOGI(TAG, "RPM: %f\n", rpm);
         }
         
         // Zero-crossing detection: if the start angle of the current frame is less than the last start angle, 

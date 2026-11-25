@@ -33,8 +33,9 @@ const static char *TAG = "lidar_example";
 
 void app_main(void)
 {
-    // Inits the LIDAR module
 
+    ESP_LOGI(TAG, "Starting Xiaomi LIDAR example...");
+    // Inits the LIDAR module
     ub_XiaomiLIDAR_init();
 
     xTaskCreatePinnedToCore(ub_XiaomiLIDAR_SerialReadTask, 
