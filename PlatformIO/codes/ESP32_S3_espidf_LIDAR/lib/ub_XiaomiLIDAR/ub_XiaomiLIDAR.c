@@ -242,13 +242,12 @@ bool ub_XiaomiLIDAR_ProcessLidarFrame(XiaomiLidarFrame_t frame)
         // parameters array structure:
         // TODO
 
-        //ESP_LOGI(TAG, "Scan Data:");
+        ESP_LOGI(TAG, "Data scanned, length: %i, samples: %i", frame.parameterLength, (frame.parameterLength - 5) / 3);
 
         uint16_t start_angle_read = (frame.parameters[3] << 8) | frame.parameters[4];
         float start_angle = angle_scale * (float)start_angle_read; // Convert to degrees
 
         int sample_cnt = (int)(((frame.parameterLength - 5) / 3));
-        //ESP_LOGI(TAG, "all measures:");
         for ( int i = 0; i < sample_cnt; i++ )
         {
             uint16_t quality = (frame.parameters[5 + (i * 3)]); // Quality value, not used in this example
